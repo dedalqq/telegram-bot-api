@@ -3,6 +3,7 @@
 package tgbotapi
 
 import (
+	"context"
 	"encoding/json"
 	"errors"
 	"fmt"
@@ -93,6 +94,11 @@ func buildParams(in Params) url.Values {
 
 // MakeRequest makes a request to a specific endpoint with our token.
 func (bot *BotAPI) MakeRequest(endpoint string, params Params) (*APIResponse, error) {
+	return bot.MakeRequestWithContext(context.Background(), endpoint, params)
+}
+
+// MakeRequestWithContext makes a request to a specific endpoint with our token.
+func (bot *BotAPI) MakeRequestWithContext(ctx context.Context, endpoint string, params Params) (*APIResponse, error) {
 	if bot.Debug {
 		log.Printf("Endpoint: %s, params: %v\n", endpoint, params)
 	}
@@ -101,7 +107,7 @@ func (bot *BotAPI) MakeRequest(endpoint string, params Params) (*APIResponse, er
 
 	values := buildParams(params)
 
-	req, err := http.NewRequest("POST", method, strings.NewReader(values.Encode()))
+	req, err := http.NewRequestWithContext(ctx, "POST", method, strings.NewReader(values.Encode()))
 	if err != nil {
 		return &APIResponse{}, err
 	}
@@ -166,6 +172,11 @@ func (bot *BotAPI) decodeAPIResponse(responseBody io.Reader, resp *APIResponse) 
 
 // UploadFiles makes a request to the API with files.
 func (bot *BotAPI) UploadFiles(endpoint string, params Params, files []RequestFile) (*APIResponse, error) {
+	return bot.UploadFilesWithContext(context.Background(), endpoint, params, files)
+}
+
+// UploadFilesWithContext makes a request to the API with files.
+func (bot *BotAPI) UploadFilesWithContext(ctx context.Context, endpoint string, params Params, files []RequestFile) (*APIResponse, error) {
 	r, w := io.Pipe()
 	m := multipart.NewWriter(w)
 
@@ -224,7 +235,7 @@ func (bot *BotAPI) UploadFiles(endpoint string, params Params, files []RequestFi
 
 	method := fmt.Sprintf(bot.apiEndpoint, bot.Token, endpoint)
 
-	req, err := http.NewRequest("POST", method, r)
+	req, err := http.NewRequestWithContext(ctx, "POST", method, r)
 	if err != nil {
 		return nil, err
 	}
@@ -282,7 +293,12 @@ func (bot *BotAPI) GetFileDirectURL(fileID string) (string, error) {
 // and so you may get this data from BotAPI.Self without the need for
 // another request.
 func (bot *BotAPI) GetMe() (User, error) {
-	resp, err := bot.MakeRequest("getMe", nil)
+	return bot.GetMeWithContext(context.Background())
+}
+
+// GetMeWithContext fetches the currently authenticated bot.
+func (bot *BotAPI) GetMeWithContext(ctx context.Context) (User, error) {
+	resp, err := bot.MakeRequestWithContext(ctx, "getMe", nil)
 	if err != nil {
 		return User{}, err
 	}
@@ -312,6 +328,11 @@ func hasFilesNeedingUpload(files []RequestFile) bool {
 
 // Request sends a Chattable to Telegram, and returns the APIResponse.
 func (bot *BotAPI) Request(c Chattable) (*APIResponse, error) {
+	return bot.RequestWithContext(context.Background(), c)
+}
+
+// RequestWithContext sends a Chattable to Telegram, and returns the APIResponse.
+func (bot *BotAPI) RequestWithContext(ctx context.Context, c Chattable) (*APIResponse, error) {
 	params, err := c.params()
 	if err != nil {
 		return nil, err
@@ -323,7 +344,7 @@ func (bot *BotAPI) Request(c Chattable) (*APIResponse, error) {
 		// If we have files that need to be uploaded, we should delegate the
 		// request to UploadFile.
 		if hasFilesNeedingUpload(files) {
-			return bot.UploadFiles(t.method(), params, files)
+			return bot.UploadFilesWithContext(ctx, t.method(), params, files)
 		}
 
 		// However, if there are no files to be uploaded, there's likely things
@@ -333,7 +354,7 @@ func (bot *BotAPI) Request(c Chattable) (*APIResponse, error) {
 		}
 	}
 
-	return bot.MakeRequest(c.method(), params)
+	return bot.MakeRequestWithContext(ctx, c.method(), params)
 }
 
 // Send will send a Chattable item to Telegram and provides the
@@ -402,7 +423,12 @@ func (bot *BotAPI) GetFile(config FileConfig) (File, error) {
 // Set Timeout to a large number to reduce requests, so you can get updates
 // instantly instead of having to wait between requests.
 func (bot *BotAPI) GetUpdates(config UpdateConfig) ([]Update, error) {
-	resp, err := bot.Request(config)
+	return bot.GetUpdatesWithContext(context.Background(), config)
+}
+
+// GetUpdatesWithContext fetches updates.
+func (bot *BotAPI) GetUpdatesWithContext(ctx context.Context, config UpdateConfig) ([]Update, error) {
+	resp, err := bot.RequestWithContext(ctx, config)
 	if err != nil {
 		return []Update{}, err
 	}
