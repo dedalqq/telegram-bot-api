@@ -27,7 +27,6 @@ type BotAPI struct {
 	Debug  bool   `json:"debug"`
 	Buffer int    `json:"buffer"`
 
-	Self            User       `json:"-"`
 	Client          HTTPClient `json:"-"`
 	shutdownChannel chan interface{}
 
@@ -53,8 +52,8 @@ func NewBotAPIWithAPIEndpoint(token, apiEndpoint string) (*BotAPI, error) {
 // and allows you to pass a http.Client.
 //
 // It requires a token, provided by @BotFather on Telegram and API endpoint.
-func NewBotAPIWithClient(token, apiEndpoint string, client HTTPClient) (*BotAPI, error) {
-	bot := &BotAPI{
+func NewBotAPIWithClient(token, apiEndpoint string, client HTTPClient) *BotAPI {
+	return &BotAPI{
 		Token:           token,
 		Client:          client,
 		Buffer:          100,
@@ -62,15 +61,6 @@ func NewBotAPIWithClient(token, apiEndpoint string, client HTTPClient) (*BotAPI,
 
 		apiEndpoint: apiEndpoint,
 	}
-
-	self, err := bot.GetMe()
-	if err != nil {
-		return nil, err
-	}
-
-	bot.Self = self
-
-	return bot, nil
 }
 
 // SetAPIEndpoint changes the Telegram Bot API endpoint used by the instance.
@@ -307,13 +297,6 @@ func (bot *BotAPI) GetMeWithContext(ctx context.Context) (User, error) {
 	err = json.Unmarshal(resp.Result, &user)
 
 	return user, err
-}
-
-// IsMessageToMe returns true if message directed to this bot.
-//
-// It requires the Message.
-func (bot *BotAPI) IsMessageToMe(message Message) bool {
-	return strings.Contains(message.Text, "@"+bot.Self.UserName)
 }
 
 func hasFilesNeedingUpload(files []RequestFile) bool {
