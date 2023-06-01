@@ -8,7 +8,6 @@ import (
 	"errors"
 	"fmt"
 	"io"
-	"io/ioutil"
 	"mime/multipart"
 	"net/http"
 	"net/url"
@@ -147,7 +146,7 @@ func (bot *BotAPI) decodeAPIResponse(responseBody io.Reader, resp *APIResponse) 
 	}
 
 	// if debug, read response body
-	data, err := ioutil.ReadAll(responseBody)
+	data, err := io.ReadAll(responseBody)
 	if err != nil {
 		return nil, err
 	}
@@ -503,6 +502,8 @@ func (bot *BotAPI) ListenForWebhookRespReqFormat(w http.ResponseWriter, r *http.
 	ch := make(chan Update, bot.Buffer)
 
 	func(w http.ResponseWriter, r *http.Request) {
+		defer close(ch)
+
 		update, err := bot.HandleUpdate(r)
 		if err != nil {
 			errMsg, _ := json.Marshal(map[string]string{"error": err.Error()})
@@ -513,7 +514,6 @@ func (bot *BotAPI) ListenForWebhookRespReqFormat(w http.ResponseWriter, r *http.
 		}
 
 		ch <- *update
-		close(ch)
 	}(w, r)
 
 	return ch
